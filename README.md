@@ -319,7 +319,7 @@ PIL
         ↓
 RGBA
         ↓
-NumPy RGBA→BGRA
+RGBA→BGRA
         ↓
 /dev/fb0 (32-bit)
         ↓
@@ -421,7 +421,7 @@ scorebug.py
     ↓
 PIL
     ↓
-RGB565 conversion
+RGBA→BGRA
     ↓
 Framebuffer
     ↓

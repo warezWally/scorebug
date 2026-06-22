@@ -619,7 +619,7 @@ def main():
         play_lock = game.get("play_lock", 0)
 
         try:
-            latest_play = get_latest_play(game_id) if play_lock > 0 else play_lock
+            latest_play = get_latest_play(game_id) if play_lock < 1 else play_lock
 
             if int(latest_play) > int(last_play) or status_timer >= STATUS_TIMEOUT:
                 payload = get_play(game_id, latest_play)

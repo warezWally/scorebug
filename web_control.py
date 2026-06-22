@@ -76,7 +76,7 @@ def index():
     return f"""
     <html>
     <head>
-        <title>Baseball Box</title>
+        <title>Richmond Baseball Video Graphics Control</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             body {{

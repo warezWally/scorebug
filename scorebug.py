@@ -46,8 +46,6 @@ INNINGS = [
 ]
 
 
-
-
 try:
     font_large = ImageFont.truetype("Gotham-Bold.otf", 72)
     font_medium = ImageFont.truetype("Gotham-Book.otf", 42)
@@ -350,10 +348,8 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
 
     inning_number = get_inning(inning_number)
 
-
     batter = {}
     pitcher = {}
-
 
     def batter_line(batter):
         line = []
@@ -365,7 +361,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
                 n = batter['TRIPLE']
             elif type == "HR":
                 n = batter['HR']
-            #elif type == "RBI":
+            # elif type == "RBI":
             #    n = batter['RBI']
             elif type == "K":
                 n = batter['SO']
@@ -384,8 +380,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
                 line.append(f"{n} {type}")
             else:
                 line.append(type)
-        
-        
+
         return ", ".join(line)
 
     for player_num in payload['boxscore']:
@@ -401,7 +396,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
             continue
 
     pitcher['BALLS'] = pitcher['PITCHES'] - pitcher['STRIKES']
-    
+
     # Transparent image
     # img = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
     template = Image.open(TEMPLATE_FILE).convert("RGBA")
@@ -409,19 +404,16 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
     overlay = Image.new("RGBA", template.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)    
 
-    #AWAY COLOUR
-    draw.rectangle(
-        (852, 932, 1242, 1015),
-        fill="#" + away['colour'] + "99"
-    )
+    # AWAY COLOUR
+    draw.rectangle((852, 934, 1242, 1017), fill="#" + away["colour"] + "99")
 
-    #HOME COLOUR
-    draw.polygon([(1242,932),(1570,932),(1653,1015),(1242,1015)],
-   # draw.rectangle(
-    #    (1242, 932, 1442,1015),
-        fill="#" + home['colour'] + "99"
+    # HOME COLOUR
+    draw.polygon(
+        [(1242, 934), (1570, 934), (1653, 1017), (1242, 1017)],
+        # draw.rectangle(
+        #    (1242, 932, 1442,1015),
+        fill="#" + home["colour"] + "99",
     )
-
 
     # Score
     draw.text(
@@ -479,7 +471,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
             anchor="mb",
         )
     else:
-        
+
         if status_timer < STATUS_TIMEOUT and len(payload['platecount']) > 0 and payload['platecount'][0]['type'] == 0: #Basically if there isn't an AB going on
             status = payload['platecount'][0]['label'].split("<br>")
             away['player'] = status[0]
@@ -492,8 +484,6 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
             home["player"] = f"{batter['order']}: {batter['POS']} - {batter['lastname']} - ({batter['H']}-{batter['AB']}) {batter['line']}"
             away["player"] = f"P: {pitcher['lastname']} - {pitcher['PITCHIP']} ({pitcher['BALLS']}-{pitcher['STRIKES']})"
             draw_down_arrow(draw, 1760, 887)
-        
-        
 
         draw.text(
             (1790, 885),
@@ -559,10 +549,10 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
         draw_base(1714, 932, first)
     status_timer = 0    
     img = Image.alpha_composite(template, overlay)
-    
+
     img.save(OUTPUT_FILE)
 
-    
+
 last_game_mtime = 0
 
 def load_game_if_changed():

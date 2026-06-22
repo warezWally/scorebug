@@ -581,16 +581,17 @@ def get_team_colour(team, default):
 def frame_buffer(img):
     img = img.convert("RGB").resize((WIDTH, HEIGHT))
 
-    arr = np.asarray(img)
+    # arr = np.asarray(img)
 
-    r = (arr[:,:,0] >> 3).astype(np.uint16)
-    g = (arr[:,:,1] >> 2).astype(np.uint16)
-    b = (arr[:,:,2] >> 3).astype(np.uint16)
+    # r = (arr[:,:,0] >> 3).astype(np.uint16)
+    # g = (arr[:,:,1] >> 2).astype(np.uint16)
+    # b = (arr[:,:,2] >> 3).astype(np.uint16)
 
-    rgb565 = (r << 11) | (g << 5) | b
+    # rgb565 = (r << 11) | (g << 5) | b
 
     with open(FB, "wb") as fb:
-        fb.write(rgb565.tobytes())
+        fb.write(img.tobytes("raw", "BGRA"))
+    # fb.write(rgb565.tobytes())
 
 def main():
     global status_timer

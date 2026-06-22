@@ -159,9 +159,10 @@ def get_lineups(payload):
         "home": []
     }
 
-    for key, player in payload["boxscore"].items():
+    seen = set()
+
+    for key, player in reversed(payload["boxscore"].items()):
         # Skip pitcher stat rows
-        
 
         # WBSC keys: 1010 = away batting 1st, 1090 = away batting 9th
         #            2010 = home batting 1st, 2090 = home batting 9th
@@ -173,17 +174,22 @@ def get_lineups(payload):
 
         if batting_order < 1 or batting_order > 9:
             continue
-    
+
+        if (team_side, batting_order) in seen:
+            continue
+
         row = {
             "order": batting_order,
-            "name": player.get("name",""),
+            "name": player.get("name", ""),
             "lastname": player.get("lastname", ""),
             "firstname": player.get("firstname", ""),
             "pos": player.get("POS", ""),
             "avg": player.get("AVG", ""),
             "season": player.get("SEASON", {}),
-            "image": player.get("image","")
+            "image": player.get("image", ""),
         }
+
+        seen.add((team_side, batting_order))
 
         row['image'] = "" #image_logic(row['image'])
 

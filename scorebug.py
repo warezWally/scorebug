@@ -596,7 +596,6 @@ def frame_buffer(img):
 def main():
     global status_timer
 
-    
     frame_buffer(Image.new("RGB", (WIDTH, HEIGHT), ("#FF66C4")))
 
     last_play = 0 
@@ -604,29 +603,30 @@ def main():
     while True:
         now = datetime.now(ZoneInfo("Europe/London"))
         clock = now.strftime("%H:%M %Z")
-        
-        
+
         new_game = load_game_if_changed()
-        
+
         if new_game != None:
             game = new_game
             last_play = 0
-                    
+
         game_id = game["id"]
         competition_img = game["competition"]
 
         home = game["home"]
-        away = game["away"]        
-        
+        away = game["away"]
+
+        play_lock = game.get("play_lock", 0)
+
         try:
-            latest_play = get_latest_play(game_id) if len(sys.argv) < 5 else sys.argv[4]
+            latest_play = get_latest_play(game_id) if play_lock > 0 else play_lock
 
             if int(latest_play) > int(last_play) or status_timer >= STATUS_TIMEOUT:
                 payload = get_play(game_id, latest_play)
-      
+
                 hc = get_team_colour(home,"FFFFFF")
                 ac = get_team_colour(away,"000000")
-                  
+
                 if int(latest_play) == 1:
                     render_lineup_sheet(payload, lineup_medium, lineup_small, hc, ac)
                 else:
@@ -644,18 +644,18 @@ def main():
             league_logo = Image.open(f"images/{competition_img}.png").convert("RGBA")
 
             league_logo.thumbnail((120, 120))
-            #alpha = league_logo.getchannel("A")
-            #alpha = alpha.point(lambda p: int(p * 0.8))
-            #league_logo.putalpha(alpha)
+            # alpha = league_logo.getchannel("A")
+            # alpha = alpha.point(lambda p: int(p * 0.8))
+            # league_logo.putalpha(alpha)
 
-            #logo_layer = Image.new("RGBA", finished_img.size, (0, 0, 0, 0))
+            # logo_layer = Image.new("RGBA", finished_img.size, (0, 0, 0, 0))
             finished_img.paste(league_logo, (15, 25), league_logo)
         except:
             print(f"Could'nt work with {competition_img}")
 
         clock_draw = ImageDraw.Draw(finished_img)    
 
-        #AWAY COLOUR
+        # AWAY COLOUR
         clock_draw.rounded_rectangle(
             (1800, 20, 1900, 80),
             fill="#000000",
@@ -673,16 +673,16 @@ def main():
             align="center"
         )
 
-        #finished_img = Image.alpha_composite(finished_img, logo_layer)
-        #finished_img.save(OUTPUT_FILE)
+        # finished_img = Image.alpha_composite(finished_img, logo_layer)
+        # finished_img.save(OUTPUT_FILE)
 
-        #surface = pygame.image.fromstring(finished_img.tobytes(),finished_img.size,finished_img.mode)
-        
-        #screen.blit(surface,(0,0))
-        #pygame.display.flip()
-        
+        # surface = pygame.image.fromstring(finished_img.tobytes(),finished_img.size,finished_img.mode)
+
+        # screen.blit(surface,(0,0))
+        # pygame.display.flip()
+
         frame_buffer(finished_img)
-        
+
         time.sleep(POLL_INTERVAL)
         status_timer = status_timer + POLL_INTERVAL
 

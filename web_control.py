@@ -152,15 +152,33 @@ def index():
             function setCompetition(comp) {{
                 document.getElementById("competition").value = comp;
             }}
+
+            function clearPlayLock() {{
+                document.getElementById("play_lock").value = "";
+            }}
         </script>
     </head>
 
     <body>
-        <h1>Baseball Box</h1>
+        <h1>Richmond Baseball Video Graphics Control</h1>
 
         <form method="post" action="/save">
             <label>Game ID</label>
             <input name="id" value="{game.get('id', '')}">
+            
+            <label>Lock to play #</label>
+            <input
+                id="play_lock"
+                name="play_lock"
+                type="number"
+                min="0"
+                value="{game.get('play_lock', 0)}"
+                placeholder="Leave at 0 for live playback"
+            >
+
+            <div class="button-row">
+                <button type="button" onclick="clearLockPlay()">Live / unlock</button>
+            </div>
 
             <label>Competition</label>
             
@@ -174,6 +192,13 @@ def index():
                 {competition_buttons()}
             </div>
 
+            <label>Away colour</label>
+            <input id="away_colour" name="away_colour" value="{away_colour}">
+
+            <div class="swatches">
+                {colour_buttons("away_colour")}
+            </div>            
+
             <label>Home colour</label>
             <input id="home_colour" name="home_colour" value="{home_colour}">
 
@@ -181,12 +206,7 @@ def index():
                 {colour_buttons("home_colour")}
             </div>
 
-            <label>Away colour</label>
-            <input id="away_colour" name="away_colour" value="{away_colour}">
 
-            <div class="swatches">
-                {colour_buttons("away_colour")}
-            </div>
 
             <button class="save" type="submit">Save settings</button>
         </form>
@@ -196,15 +216,19 @@ def index():
 
 @app.route("/save", methods=["POST"])
 def save():
+
+    play_lock_raw = request.form.get("play_lock", "").strip()
+    play_lock = 0
+
+    if play_lock_raw:
+        play_lock = int(play_lock_raw)
+
     data = {
         "id": int(request.form["id"]),
         "competition": request.form["competition"],
-        "home": {
-            "colour": request.form["home_colour"].replace("#", "")
-        },
-        "away": {
-            "colour": request.form["away_colour"].replace("#", "")
-        }
+        "home": {"colour": request.form["home_colour"].replace("#", "")},
+        "away": {"colour": request.form["away_colour"].replace("#", "")},
+        "play_lock": play_lock,
     }
 
     save_game(data)

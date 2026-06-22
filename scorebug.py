@@ -409,7 +409,7 @@ def render_scorebug(payload, home_colour="000000", away_colour="FFFFFF"):
 
     # HOME COLOUR
     draw.polygon(
-        [(1242, 932), (1570, 932), (1653, 1017), (1242, 1017)],
+        [(1242, 932), (1570, 932), (1653, 1017), (1244, 1017)],
         # draw.rectangle(
         #    (1242, 932, 1442,1015),
         fill="#" + home["colour"] + "99",

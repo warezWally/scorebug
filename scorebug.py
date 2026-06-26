@@ -721,7 +721,7 @@ def main():
 
         try:
             latest_play = get_latest_play(game_id) if play_lock < 1 else play_lock
-            
+
             finished_img = None
 
             if int(latest_play) > int(last_play) or status_timer >= STATUS_TIMEOUT:
@@ -738,10 +738,11 @@ def main():
                 print(f"Updated graphic for play {latest_play}")
 
                 last_play = latest_play
-                
+                finished_img.save(OUTPUT_FILE)
+
             if finished_img == None:
                 finished_img = Image.open(OUTPUT_FILE)
-            
+
             try:
                 league_logo = Image.open(f"images/{competition_img}.png").convert(
                     "RGBA"

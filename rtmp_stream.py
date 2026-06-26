@@ -83,6 +83,7 @@ def main():
     print(f"Expected frame size: {expected_size} bytes")
 
     while True:
+        frame = None
         if ffmpeg.poll() is not None:
             print(f"FFmpeg exited with code {ffmpeg.returncode}")
             break

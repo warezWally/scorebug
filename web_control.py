@@ -5,9 +5,20 @@ import tempfile
 import requests
 from bs4 import BeautifulSoup
 import re
+import subprocess
 
 app = Flask(__name__)
 GAME_FILE = "game.json"
+
+
+def run_cmd(cmd):
+    try:
+        return subprocess.check_output(
+            cmd, text=True, stderr=subprocess.DEVNULL
+        ).strip()
+    except Exception:
+        return ""
+
 
 def save_game(data):
     fd, tmp = tempfile.mkstemp(dir=".", suffix=".json")
@@ -128,6 +139,19 @@ def fetch_games(competition):
         )
 
     return games
+
+
+@app.route("/api/network-status")
+def api_network_status():
+    return jsonify(
+        {
+            "default_route": run_cmd(["ip", "route", "get", "8.8.8.8"]),
+            "routes": run_cmd(["ip", "route"]),
+            "addresses": run_cmd(["hostname", "-I"]),
+            "clients": run_cmd(["cat", "/var/lib/misc/dnsmasq.leases"]),
+            "ip_forward": run_cmd(["sysctl", "-n", "net.ipv4.ip_forward"]),
+        }
+    )
 
 
 @app.route("/api/upcoming-games")
@@ -273,6 +297,36 @@ def index():
                 }}
             }}
         </script>
+        <script>
+            async function loadNetworkStatus() {{
+                const box = document.getElementById("network_status");
+                box.textContent = "Loading...";
+
+                try {{
+                    const response = await fetch("/api/network-status");
+                    const data = await response.json();
+
+                    box.textContent =
+            `Default route:
+            ${{data.default_route}}
+
+            IP addresses:
+            ${{data.addresses}}
+
+            IP forwarding:
+            ${{data.ip_forward === "1" ? "enabled" : "disabled"}}
+
+            Routes:
+            ${{data.routes}}
+
+            DHCP clients:
+            ${{data.clients || "No DHCP leases yet"}}`;
+                }} catch (err) {{
+                    box.textContent = "Error loading network status";
+                    console.error(err);
+                }}
+            }}
+        </script>
     </head>
 
     <body>
@@ -330,6 +384,29 @@ def index():
 
 
             <button class="save" type="submit">Save settings</button>
+
+            <details style="margin-top: 30px;">
+                <summary style="font-size: 26px; font-weight: bold; cursor: pointer;">
+                    Advanced / Network
+                </summary>
+            
+                <button type="button" onclick="loadNetworkStatus()">
+                    Refresh network status
+                </button>
+            
+                <pre
+                    id="network_status"
+                    style="
+                        background: #000;
+                        color: #0f0;
+                        padding: 16px;
+                        border-radius: 8px;
+                        white-space: pre-wrap;
+                        font-size: 16px;
+                    "
+                >Press refresh...</pre>
+            </details>
+
         </form>
     </body>
     </html>

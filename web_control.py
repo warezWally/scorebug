@@ -12,7 +12,7 @@ import psutil
 app = Flask(__name__)
 GAME_FILE = "game.json"
 
-RTMP_PID = 0
+RTMP_PROCESS = None
 
 def run_cmd(cmd):
     try:
@@ -38,7 +38,10 @@ def start_rtmp(ff, w, h, f, url):
             str(f),
             "--url",
             url,
-        ]
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
     )
 
 
@@ -278,7 +281,7 @@ def index():
     <body>
         <h1>Richmond Baseball Video Control</h1>
 
-        <form method="post" action="/save">
+        <form id="general-form">
             <label>Competition</label>
             
             <input
@@ -386,8 +389,21 @@ def index():
                       <button type="button" id="rtmp-live">Go LIVE</button>
                     </div>
 
-                    <p id="rtmp-status">RTMP: unknown</p>
+                    <h2 id="rtmp-status">RTMP: unknown</h2>
+                    <h4>Errors:</h4>
+                    <pre
+                    id="rtmp_status"
+                    style="
+                        background: #000;
+                        color: #0f0;
+                        padding: 16px;
+                        border-radius: 8px;
+                        white-space: pre-wrap;
+                        font-size: 16px;
+                    "
+                    >...</pre>
                   </fieldset>
+                  
                 </div>
             </details>
 
@@ -410,7 +426,7 @@ def index():
                     select.innerHTML = '<option value="">Select a competition first</option>';
                     return;
                 }}
-
+                
                 try {{
                     const response = await fetch(`/api/upcoming-games?competition=${{encodeURIComponent(comp)}}`);
                     const games = await response.json();
@@ -502,6 +518,9 @@ def index():
 
           document.getElementById("rtmp-live").textContent =
             data.live ? "Stop LIVE" : "Go LIVE";
+          
+          if (data.process_output) document.getElementById("rtmp_status").textContent = data.process_output
+          
         }}
 
         async function saveRtmp() {{
@@ -545,9 +564,7 @@ def index():
           await loadRtmp();
         }}
 
-        document.getElementById("rtmp-load").addEventListener("click", loadRtmp);
-        document.getElementById("rtmp-save").addEventListener("click", saveRtmp);
-        document.getElementById("rtmp-live").addEventListener("click", toggleRtmpLive);
+
 
         loadRtmp();
         checkLiveRtmp();
@@ -555,10 +572,43 @@ def index():
         </script>
 
         <script>
-        document.querySelector("form").addEventListener("submit", () => {{
+
+
+        document.getElementById("rtmp-load").addEventListener("click", loadRtmp);
+        document.getElementById("rtmp-save").addEventListener("click", saveRtmp);
+        document.getElementById("rtmp-live").addEventListener("click", toggleRtmpLive);
+
+        document.getElementById("general-form").addEventListener("submit", async (event) => {{
+          event.preventDefault();
+          
           const btn = document.getElementById("general-save");
+          const form = document.getElementById("general-form");
+          
           btn.disabled = true;
           btn.textContent = "Saving...";
+
+            try {{
+                const response = await fetch("/save", {{
+                    method: "POST",
+                    body: new FormData(form),
+                }});
+
+                if (!response.ok) {{
+                    throw new Error("Save failed");
+                }}
+
+                btn.textContent = "Saved";
+
+                setTimeout(() => {{
+                    btn.disabled = false;
+                    btn.textContent = "Save settings";
+                }}, 1000);
+            }} catch (err) {{
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = "Save failed";
+            }}
+
         }});
         </script>
     </body>
@@ -584,34 +634,34 @@ def save():
     }
 
     save_game(data)
+    return jsonify({"ok": True})
+    # return """
+    # <html>
+    # <head>
+    #     <title>Saved</title>
+    #     <style>
+    #         body {
+    #             font-family: Arial, sans-serif;
+    #             text-align: center;
+    #             margin-top: 100px;
+    #         }
 
-    return """
-    <html>
-    <head>
-        <title>Saved</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin-top: 100px;
-            }
+    #         button {
+    #             font-size: 24px;
+    #             padding: 20px 40px;
+    #             margin-top: 40px;
+    #         }
+    #     </style>
+    # </head>
+    # <body>
+    #     <h1>✅ Settings saved</h1>
 
-            button {
-                font-size: 24px;
-                padding: 20px 40px;
-                margin-top: 40px;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>✅ Settings saved</h1>
-
-        <button onclick="window.history.back()">
-            ← Back
-        </button>
-    </body>
-    </html>
-    """
+    #     <button onclick="window.history.back()">
+    #         ← Back
+    #     </button>
+    # </body>
+    # </html>
+    # """
 
 
 def pid_exists(pid):
@@ -620,14 +670,28 @@ def pid_exists(pid):
 
 @app.get("/api/rtmp")
 def get_rtmp():
-    global RTMP_PID
+    global RTMP_PROCESS
     game = load_game()
     rtmp = game.get("rtmp", {})
 
-    if RTMP_PID != 0:
-        RTMP_PID = RTMP_PID if pid_exists(RTMP_PID) else 0
+    pid = (
+        0
+        if RTMP_PROCESS is None or RTMP_PROCESS.poll() is not None
+        else RTMP_PROCESS.pid
+    )
+    process_output = [""]
 
-    return {"rtmp": rtmp, "live": RTMP_PID != 0}
+    if RTMP_PROCESS is not None and pid == 0:
+        try:
+            # pid = RTMP_PROCESS.pid
+            process_output = RTMP_PROCESS.stdout.read().split("\n")[-10:]
+        except:
+            1
+
+    # if pid != 0:
+    #     RTMP_PROCESS.get("pid",0) = RTMP_PROCESS.get("pid",0) if pid_exists(RTMP_PROCESS.get("pid",0)) else 0
+
+    return {"rtmp": rtmp, "live": pid != 0, "process_output": "\n".join(process_output)}
 
 
 @app.post("/api/rtmp")
@@ -650,22 +714,26 @@ def save_rtmp():
 
 @app.post("/api/rtmp/live")
 def toggle_rtmp_live():
-    global RTMP_PID
+    global RTMP_PROCESS
     data = request.json
     live = bool(data.get("live"))
 
     if live:
-        result = start_rtmp(
+        RTMP_PROCESS = start_rtmp(
             tempfile.gettempdir() + "/scorebug.frame",
             int(data.get("rtmp", {}).get("width", 1920)),
             int(data.get("rtmp", {}).get("height", 1080)),
             int(data.get("rtmp", {}).get("fps", 25)),
             data.get("rtmp", {}).get("url", ""),
         )
-        RTMP_PID = result.pid
+
     else:
-        os.kill(RTMP_PID, 9)
-        RTMP_PID = 0
+        try:
+            os.kill(RTMP_PROCESS.pid, 9)
+        except:
+            print(f"Cannot kill RTMP process")
+
+        RTMP_PROCESS = None
 
     return {
         "ok": True,

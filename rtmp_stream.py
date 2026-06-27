@@ -86,7 +86,7 @@ def main():
         frame = None
         if ffmpeg.poll() is not None:
             print(f"FFmpeg exited with code {ffmpeg.returncode}")
-            break
+            raise SystemExit(ffmpeg.returncode)
 
         try:
             mtime = os.path.getmtime(args.input)

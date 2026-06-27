@@ -484,7 +484,7 @@ def index():
 
           const rtmp = data.rtmp || {{}};
 
-          document.getElementById("rtmp-url").value = rtmp.url || "";
+          document.getElementById("rtmp-url").value = rtmp.url || "rtmp://localhost/live/scorebug";
           document.getElementById("rtmp-width").value = rtmp.width || 1920;
           document.getElementById("rtmp-height").value = rtmp.height || 1080;
           document.getElementById("rtmp-fps").value = rtmp.fps || 25;

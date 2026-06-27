@@ -484,7 +484,7 @@ def index():
 
           const rtmp = data.rtmp || {{}};
 
-          document.getElementById("rtmp-url").value = rtmp.url || "rtmp://localhost/live/scorebug";
+          document.getElementById("rtmp-url").value = rtmp.url || "";
           document.getElementById("rtmp-width").value = rtmp.width || 1920;
           document.getElementById("rtmp-height").value = rtmp.height || 1080;
           document.getElementById("rtmp-fps").value = rtmp.fps || 25;
@@ -509,7 +509,7 @@ def index():
             method: "POST",
             headers: {{"Content-Type": "application/json"}},
             body: JSON.stringify({{
-              url: document.getElementById("rtmp-url").value,
+              url: document.getElementById("rtmp-url").value || "rtmp://localhost/live/scorebug",
               width: document.getElementById("rtmp-width").value,
               height: document.getElementById("rtmp-height").value,
               fps: document.getElementById("rtmp-fps").value,

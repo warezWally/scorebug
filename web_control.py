@@ -644,10 +644,10 @@ def toggle_rtmp_live():
             int(data.get("rtmp", {}).get("fps", 25)),
             data.get("rtmp", {}).get("url", ""),
         )
+        RTMP_PID = result.pid
     else:
-        os.kill(RTMP_PID)
-
-    RTMP_PID = result.pid
+        os.kill(RTMP_PID, 9)
+        RTMP_PID = 0
 
     return {
         "ok": True,

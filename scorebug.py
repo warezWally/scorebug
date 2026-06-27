@@ -15,16 +15,12 @@ OUTPUT_FILE = "scorebug.png"
 TEMPLATE_FILE = "template.png"
 FB = "/dev/fb0"
 
-RTMP_URL = "rtmp://richmond-gfx-rpi/live/scorebug"
-
-
 WIDTH = 1920
 HEIGHT = 1080
 HDMI_WIDTH = WIDTH
 HDMI_HEIGHT = HEIGHT
-RTMP_WIDTH = WIDTH
-RTMP_HEIGHT = HEIGHT
-RTMP_FPS = 25
+
+
 FRAME_FILE = tempfile.gettempdir() + "/scorebug.frame"
 TEMP_FRAME_FILE = tempfile.gettempdir() + "/scorebug.frame.tmp"
 
@@ -655,29 +651,10 @@ def frame_buffer(img):
         fb.write(img.tobytes("raw", "BGRA"))
 
 
-def start_rtmp():
-    return subprocess.Popen(
-        [
-            sys.executable,
-            "rtmp_stream.py",
-            "--input",
-            str(FRAME_FILE),
-            "--width",
-            str(RTMP_WIDTH),
-            "--height",
-            str(RTMP_HEIGHT),
-            "--fps",
-            str(RTMP_FPS),
-            "--url",
-            RTMP_URL,
-        ]
-    )
+def rtmp_frame(img, width, height):
 
-
-def rtmp_frame(img):
-
-    if img.width != RTMP_WIDTH or img.height != RTMP_HEIGHT:
-        img = img.convert("RGBA").resize((RTMP_WIDTH, RTMP_HEIGHT))
+    if img.width != width or img.height != height:
+        img = img.convert("RGBA").resize((width, height))
     frame = img.tobytes("raw", "BGRA")
 
     with open(TEMP_FRAME_FILE, "wb") as f:
@@ -693,11 +670,6 @@ def main():
         frame_buffer(Image.new("RGB", (1920, 1080), ("#FF66C4")))
     except:
         print("Cannot write to Buffer")
-
-    try:
-        start_rtmp()
-    except:
-        print("Failed to make RTMP Stream subprocess")
 
     last_play = 0
 
@@ -774,7 +746,11 @@ def main():
             except:
                 finished_img.save(OUTPUT_FILE)
 
-            rtmp_frame(finished_img)
+            rtmp_frame(
+                finished_img,
+                game.get("rtmp", {}).get("width", WIDTH),
+                game.get("rtmp", {}).get("height", HEIGHT),
+            )
 
         except Exception as e:
             print("Error:", e)

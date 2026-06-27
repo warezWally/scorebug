@@ -6,10 +6,13 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import subprocess
+import sys
+import psutil
 
 app = Flask(__name__)
 GAME_FILE = "game.json"
 
+RTMP_PID = 0
 
 def run_cmd(cmd):
     try:
@@ -20,11 +23,36 @@ def run_cmd(cmd):
         return ""
 
 
+def start_rtmp(ff, w, h, f, url):
+    return subprocess.Popen(
+        [
+            sys.executable,
+            "rtmp_stream.py",
+            "--input",
+            str(ff),
+            "--width",
+            str(w),
+            "--height",
+            str(h),
+            "--fps",
+            str(f),
+            "--url",
+            url,
+        ]
+    )
+
+
+def load_game():
+    with open(GAME_FILE) as f:
+        return json.load(f)
+
+
 def save_game(data):
     fd, tmp = tempfile.mkstemp(dir=".", suffix=".json")
     with os.fdopen(fd, "w") as f:
         json.dump(data, f, indent=4)
     os.replace(tmp, GAME_FILE)
+
 
 def competition_buttons():
     competitions = [
@@ -48,6 +76,7 @@ def competition_buttons():
         """
 
     return html
+
 
 def colour_buttons(field_id):
     colours = [
@@ -167,8 +196,7 @@ def api_upcoming_games():
 
 @app.route("/")
 def index():
-    with open(GAME_FILE) as f:
-        game = json.load(f)
+    game = load_game()
 
     home_colour = game.get("home", {}).get("colour", "FFFFFF")
     away_colour = game.get("away", {}).get("colour", "000000")
@@ -243,6 +271,127 @@ def index():
                 text-shadow: none;
             }}
         </style>
+
+
+    </head>
+
+    <body>
+        <h1>Richmond Baseball Video Control</h1>
+
+        <form method="post" action="/save">
+            <label>Competition</label>
+            
+            <input
+                id="competition"
+                name="competition"
+                value="{game.get('competition', '')}"
+            >
+            
+            <div class="swatches">
+                {competition_buttons()}
+            </div>
+
+            <label>Game ID</label>
+            <input name="id" value="{game.get('id', '')}">
+            
+            <!-- <label>Upcoming games</label>
+            <select
+                id="upcoming_games"
+                onchange="selectUpcomingGame()"
+                style="width: 100%; font-size: 24px; padding: 14px; border-radius: 8px;"
+            >
+                <option value="">Select a competition</option>
+            </select> -->
+            
+            <label>Lock to play #</label>
+            <input
+                id="play_lock"
+                name="play_lock"
+                type="number"
+                min="0"
+                value="{game.get('play_lock', 0)}"
+                placeholder="Leave at 0 or blank for live playback"
+            >            
+
+            <label>Away colour</label>
+            <input id="away_colour" name="away_colour" value="{away_colour}">
+
+            <div class="swatches">
+                {colour_buttons("away_colour")}
+            </div>            
+
+            <label>Home colour</label>
+            <input id="home_colour" name="home_colour" value="{home_colour}">
+
+            <div class="swatches">
+                {colour_buttons("home_colour")}
+            </div>
+
+
+
+            <button class="save" type="submit">Save settings</button>
+
+            <details style="margin-top: 30px;">
+                <summary style="font-size: 26px; font-weight: bold; cursor: pointer;">
+                    Advanced / Network
+                </summary>
+            
+                <button type="button" onclick="loadNetworkStatus()">
+                    Refresh network status
+                </button>
+            
+                <pre
+                    id="network_status"
+                    style="
+                        background: #000;
+                        color: #0f0;
+                        padding: 16px;
+                        border-radius: 8px;
+                        white-space: pre-wrap;
+                        font-size: 16px;
+                    "
+                >Press refresh...</pre>
+
+                <fieldset>
+                    <legend>RTMP Stream</legend>
+
+                    <label>
+                      RTMP URL
+                      <input id="rtmp-url" type="text" placeholder="rtmp://localhost/live/scorebug">
+                    </label>
+
+                    <label>
+                      Width
+                      <input id="rtmp-width" type="number" value="1920">
+                    </label>
+
+                    <label>
+                      Height
+                      <input id="rtmp-height" type="number" value="1080">
+                    </label>
+
+                    <label>
+                      FPS
+                      <input id="rtmp-fps" type="number" value="25">
+                    </label>
+
+                    <label>
+                      Pixel Format
+                      <input id="rtmp-pixfmt" type="text" value="bgra">
+                    </label>
+
+                    <div class="rtmp-actions">
+                      <button type="button" id="rtmp-load">Load RTMP Settings</button>
+                      <button type="button" id="rtmp-save">Save RTMP Settings</button>
+                      <button type="button" id="rtmp-live">Go LIVE</button>
+                    </div>
+
+                    <p id="rtmp-status">RTMP: unknown</p>
+                  </fieldset>
+                </div>
+            </details>
+
+        </form>
 
         <script>
 
@@ -328,90 +477,76 @@ def index():
                 }}
             }}
         </script>
-    </head>
+        <script>
+        async function loadRtmp() {{
+          const res = await fetch("/api/rtmp");
+          const data = await res.json();
 
-    <body>
-        <h1>Richmond Baseball Video Control</h1>
+          const rtmp = data.rtmp || {{}};
 
-        <form method="post" action="/save">
-            <label>Competition</label>
-            
-            <input
-                id="competition"
-                name="competition"
-                value="{game.get('competition', '')}"
-            >
-            
-            <div class="swatches">
-                {competition_buttons()}
-            </div>
+          document.getElementById("rtmp-url").value = rtmp.url || "";
+          document.getElementById("rtmp-width").value = rtmp.width || 1920;
+          document.getElementById("rtmp-height").value = rtmp.height || 1080;
+          document.getElementById("rtmp-fps").value = rtmp.fps || 25;
+          document.getElementById("rtmp-pixfmt").value = rtmp.pixfmt || "bgra";
 
-            <label>Game ID</label>
-            <input name="id" value="{game.get('id', '')}">
-            
-            <!-- <label>Upcoming games</label>
-            <select
-                id="upcoming_games"
-                onchange="selectUpcomingGame()"
-                style="width: 100%; font-size: 24px; padding: 14px; border-radius: 8px;"
-            >
-                <option value="">Select a competition</option>
-            </select> -->
-            
-            <label>Lock to play #</label>
-            <input
-                id="play_lock"
-                name="play_lock"
-                type="number"
-                min="0"
-                value="{game.get('play_lock', 0)}"
-                placeholder="Leave at 0 or blank for live playback"
-            >            
+          
+        }}
 
-            <label>Away colour</label>
-            <input id="away_colour" name="away_colour" value="{away_colour}">
+        async function checkLiveRtmp() {{
+          const res = await fetch("/api/rtmp");
+          const data = await res.json();
 
-            <div class="swatches">
-                {colour_buttons("away_colour")}
-            </div>            
+          document.getElementById("rtmp-status").textContent =
+            data.live ? "RTMP: LIVE" : "RTMP: offline";
 
-            <label>Home colour</label>
-            <input id="home_colour" name="home_colour" value="{home_colour}">
+          document.getElementById("rtmp-live").textContent =
+            data.live ? "Stop LIVE" : "Go LIVE";
+        }}
 
-            <div class="swatches">
-                {colour_buttons("home_colour")}
-            </div>
+        async function saveRtmp() {{
+          await fetch("/api/rtmp", {{
+            method: "POST",
+            headers: {{"Content-Type": "application/json"}},
+            body: JSON.stringify({{
+              url: document.getElementById("rtmp-url").value,
+              width: document.getElementById("rtmp-width").value,
+              height: document.getElementById("rtmp-height").value,
+              fps: document.getElementById("rtmp-fps").value,
+              pixfmt: document.getElementById("rtmp-pixfmt").value,
+            }})
+        }});
 
+          await loadRtmp();
+        }}
 
+        async function toggleRtmpLive() {{
+          const current = await fetch("/api/rtmp").then(r => r.json());
 
-            <button class="save" type="submit">Save settings</button>
+          await fetch("/api/rtmp/live", {{
+            method: "POST",
+            headers: {{"Content-Type": "application/json"}},
+            body: JSON.stringify({{
+              live: !current.live,
+              rtmp: current.rtmp
+            }})
+          }});
 
-            <details style="margin-top: 30px;">
-                <summary style="font-size: 26px; font-weight: bold; cursor: pointer;">
-                    Advanced / Network
-                </summary>
-            
-                <button type="button" onclick="loadNetworkStatus()">
-                    Refresh network status
-                </button>
-            
-                <pre
-                    id="network_status"
-                    style="
-                        background: #000;
-                        color: #0f0;
-                        padding: 16px;
-                        border-radius: 8px;
-                        white-space: pre-wrap;
-                        font-size: 16px;
-                    "
-                >Press refresh...</pre>
-            </details>
+          await loadRtmp();
+        }}
 
-        </form>
+        document.getElementById("rtmp-load").addEventListener("click", loadRtmp);
+        document.getElementById("rtmp-save").addEventListener("click", saveRtmp);
+        document.getElementById("rtmp-live").addEventListener("click", toggleRtmpLive);
+
+        loadRtmp();
+        checkLiveRtmp();
+        setInterval(checkLiveRtmp, 2000);
+        </script>
     </body>
     </html>
     """
+
 
 @app.route("/save", methods=["POST"])
 def save():
@@ -459,5 +594,65 @@ def save():
     </body>
     </html>
     """
+
+
+def pid_exists(pid):
+    return psutil.pid_exists(pid)
+
+
+@app.get("/api/rtmp")
+def get_rtmp():
+    global RTMP_PID
+    game = load_game()
+    rtmp = game.get("rtmp", {})
+
+    if RTMP_PID != 0:
+        RTMP_PID = RTMP_PID if pid_exists(RTMP_PID) else 0
+
+    return {"rtmp": rtmp, "live": RTMP_PID != 0}
+
+
+@app.post("/api/rtmp")
+def save_rtmp():
+    data = request.json
+
+    game = load_game()
+
+    game["rtmp"] = {
+        "url": data.get("url", ""),
+        "width": int(data.get("width", 1920)),
+        "height": int(data.get("height", 1080)),
+        "fps": int(data.get("fps", 25)),
+        "pixfmt": data.get("pixfmt", "bgra"),
+    }
+
+    save_game(game)
+    return {"ok": True, "rtmp": game["rtmp"]}
+
+
+@app.post("/api/rtmp/live")
+def toggle_rtmp_live():
+    global RTMP_PID
+    data = request.json
+    live = bool(data.get("live"))
+
+    if live:
+        result = start_rtmp(
+            tempfile.gettempdir() + "/scorebug.frame",
+            int(data.get("rtmp", {}).get("width", 1920)),
+            int(data.get("rtmp", {}).get("height", 1080)),
+            int(data.get("rtmp", {}).get("fps", 25)),
+            data.get("rtmp", {}).get("url", ""),
+        )
+    else:
+        os.kill(RTMP_PID)
+
+    RTMP_PID = result.pid
+
+    return {
+        "ok": True,
+        "live": live,
+    }
+
 
 app.run(host="0.0.0.0", port=8080)
